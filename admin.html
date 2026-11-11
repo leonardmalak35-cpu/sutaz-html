@@ -1,18 +1,650 @@
 <!doctype html>
-<html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101114"><title>Admin — Webová liga</title>
-<style>
-:root{color-scheme:dark;--bg:#101114;--panel:#191a20;--line:#30313a;--text:#f5f4f1;--muted:#a6a6b0;--lime:#c8fa65}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{width:min(1120px,calc(100% - 32px));margin:auto}.top{border-bottom:1px solid #ffffff15;padding:17px 0}.top-inner{display:flex;justify-content:space-between;align-items:center}.brand{font-weight:850;font-size:19px;color:white;text-decoration:none}.brand span{background:var(--lime);color:#171912;padding:4px 8px;border-radius:8px;margin-right:8px}.btn{border:0;border-radius:10px;background:var(--lime);color:#171912;font-weight:800;padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-block}.btn.secondary{background:#33343a;color:white}.btn.danger{background:#512d31;color:#ffd9dc}main{padding:34px 0 55px}h1{font-size:clamp(32px,5vw,48px);letter-spacing:-.06em;line-height:1;margin:8px 0}.muted{color:var(--muted)}.warning{border:1px solid #e8ad4c55;background:#e8ad4c12;padding:13px 15px;border-radius:12px;color:#f0d7a8;font-size:13px;margin:18px 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin:22px 0}.stat,.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px}.stat small{display:block;color:var(--muted)}.stat strong{font-size:27px}.tools{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}.list{display:grid;gap:12px;margin-top:15px}.item{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:15px}.item h3{margin:0}.item p{margin:3px 0;color:var(--muted);font-size:13px}.slug{color:var(--lime);font-size:12px}.empty{padding:30px;text-align:center;border:1px dashed var(--line);border-radius:15px;color:var(--muted)}.field{display:grid;gap:8px;max-width:500px;margin:16px 0}.field input{width:100%;padding:11px;border:1px solid #383941;border-radius:10px;background:#111216;color:white;font:inherit}.remaining{font-size:13px;color:var(--lime)}.footer{border-top:1px solid #ffffff15;padding:20px 0;color:var(--muted);font-size:12px}@media(max-width:600px){.stats{grid-template-columns:1fr}.item{grid-template-columns:1fr}}
-</style></head><body><header class="top"><div class="wrap top-inner"><a class="brand" href="./"><span>W</span>Webová liga · Admin</a><a class="btn secondary" id="home" href="./">Späť na súťaž</a></div></header>
-<main class="wrap" id="panel"><div class="muted">ADMINISTRAČNÝ PANEL</div><h1>Správa súťaže</h1><p class="muted">Časovač sa automaticky spustí na 7 dní pri pridaní prvého webu do kola.</p><div class="warning">Demo: URL /admin.4321 nie je bezpečné prihlasovanie. Údaje a nastavenia sú uložené iba v tomto prehliadači.</div><section class="stats"><div class="stat"><small>Weby spolu</small><strong id="total">0</strong></div><div class="stat"><small>Hlasy spolu</small><strong id="votes">0</strong></div><div class="stat"><small>Weby v kole</small><strong id="active">0</strong></div></section>
-<section class="box"><h2 style="margin:0">Čas do vyhlásenia víťaza</h2><p class="muted">Môžeš nastaviť vlastný termín, alebo nechať časovač spustiť až po prvom prihlásenom webe.</p><div class="field"><label for="endAt">Koniec hlasovania (voliteľné)</label><input id="endAt" type="datetime-local"><div class="remaining" id="remaining"></div></div><div class="tools"><button class="btn" id="save-time">Uložiť termín</button><button class="btn secondary" id="auto">Spustiť automaticky po prvom webe</button><button class="btn secondary" id="new-round">Nové kolo · časovač čaká na prvý web</button></div></section>
-<section class="box" style="margin-top:20px"><h2 style="margin:0">Záloha a správa</h2><div class="tools"><button class="btn" id="export">Stiahnuť zálohu JSON</button><label class="btn secondary" for="import">Obnoviť zálohu</label><input id="import" type="file" accept="application/json,.json" hidden><button class="btn danger" id="clear-votes">Vynulovať hlasy</button><button class="btn danger" id="clear-all">Vymazať všetky weby</button></div></section><section style="margin-top:22px"><h2>Prihlásené weby</h2><div class="list" id="list"></div></section></main><footer class="wrap footer">Lokálny demo admin.</footer>
-<script>
-(()=>{const DATA='webova-liga-html-v2',SET='webova-liga-settings-v1',EXPECT='/admin.4321';const forwarded=new URLSearchParams(location.search).get('route');if(forwarded)history.replaceState({},'',forwarded);const path=decodeURIComponent(location.pathname).replace(/\/+$/,'');if(!path.endsWith(EXPECT)){document.getElementById('panel').innerHTML='<h1>Stránka sa nenašla</h1>';return}const prefix=path.slice(0,-EXPECT.length),root=(prefix||'')+'/';document.getElementById('home').href=root;
-const read=()=>{try{return JSON.parse(localStorage.getItem(DATA))||{entries:[],votes:{}}}catch{return{entries:[],votes:{}}}},write=d=>{try{localStorage.setItem(DATA,JSON.stringify(d));return true}catch{return false}},settings=()=>{try{return JSON.parse(localStorage.getItem(SET))||{}}catch{return{}}},put=s=>{try{localStorage.setItem(SET,JSON.stringify(s));return true}catch{return false}},esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function roundKey(){const s=settings();if(s.roundKey)return s.roundKey;const m=new Date();m.setHours(0,0,0,0);m.setDate(m.getDate()-((m.getDay()+6)%7));return `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,'0')}-${String(m.getDate()).padStart(2,'0')}`}
-function deadline(){const t=Number(settings().endAt);return Number.isFinite(t)&&t>0?t:null}function asLocal(t){const d=new Date(t),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`}
-function render(){const d=read(),es=Array.isArray(d.entries)?d.entries:[],k=roundKey(),end=deadline();document.getElementById('total').textContent=es.length;document.getElementById('votes').textContent=es.reduce((n,e)=>n+(Number(e.votes)||0),0);document.getElementById('active').textContent=es.filter(e=>e.week===k).length;document.getElementById('endAt').value=end?asLocal(end):'';const list=document.getElementById('list');if(!es.length){list.innerHTML='<div class="empty">Zatiaľ nie sú príspevky v tomto prehliadači.</div>';return}list.innerHTML=es.map(e=>`<article class="item"><div><h3>${esc(e.title)}</h3><div class="slug">/${esc(e.slug||'')}</div><p>${esc(e.creator)} · ${Number(e.votes)||0} hlasov · kolo ${esc(e.week||'—')}</p></div><a class="btn secondary" target="_blank" rel="noopener" href="${root}${encodeURIComponent(e.slug||'')}">Otvoriť web ↗</a></article>`).join('')}
-function update(){const e=deadline(),el=document.getElementById('remaining');if(!e){el.textContent='Čaká na prvý prihlásený web.';return}const ms=e-Date.now();el.textContent=ms<=0?'Čas vypršal — víťaz sa určí automaticky.':`Zostáva ${Math.floor(ms/86400000)} d ${Math.floor(ms%86400000/3600000)} h ${Math.floor(ms%3600000/60000)} min.`}
-document.getElementById('save-time').onclick=()=>{const v=document.getElementById('endAt').value,t=new Date(v).getTime();if(!v||!Number.isFinite(t)||t<=Date.now()){alert('Vyber čas v budúcnosti.');return}const s=settings();s.endAt=t;s.winnerId=null;s.winnerRoundKey=null;put(s);render();update();alert('Termín uložený.')};document.getElementById('auto').onclick=()=>{const s=settings();delete s.endAt;s.winnerId=null;s.winnerRoundKey=null;put(s);render();update();alert('Časovač sa spustí pri prvom prihlásení v tomto kole.')};document.getElementById('new-round').onclick=()=>{if(!confirm('Začať nové kolo? Staré príspevky ostanú v zálohe, nové kolo čaká na prvý web.'))return;const s=settings();s.roundKey='round-'+Date.now();delete s.endAt;s.winnerId=null;s.winnerRoundKey=null;put(s);render();update();alert('Nové kolo pripravené. Časovač čaká na prvý web.')};document.getElementById('export').onclick=()=>{const b=new Blob([JSON.stringify({data:read(),settings:settings()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='webova-liga-zaloha.json';a.click();URL.revokeObjectURL(a.href)};document.getElementById('import').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text()),d=x.data||x;if(!Array.isArray(d.entries)||typeof d.votes!=='object')throw Error();if(!confirm('Obnoviť zálohu?'))return;write(d);if(x.settings)put(x.settings);render();update();alert('Záloha obnovená.')}catch{alert('Neplatná záloha.')}ev.target.value=''};document.getElementById('clear-votes').onclick=()=>{if(!confirm('Vynulovať všetky hlasy?'))return;const d=read();d.entries.forEach(e=>e.votes=0);d.votes={};write(d);const s=settings();s.winnerId=null;s.winnerRoundKey=null;put(s);render()};document.getElementById('clear-all').onclick=()=>{if(!confirm('Vymazať všetky príspevky a hlasy?'))return;write({entries:[],votes:{}});render()};render();update();setInterval(update,1000);
-})();
-</script></body></html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#101114" />
+  <title>Admin — Webová liga</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --panel: #191a20;
+      --line: #30313a;
+      --text: #f5f4f1;
+      --muted: #a6a6b0;
+      --lime: #c8fa65;
+      --danger: #ff5e5b;
+      --danger-soft: rgba(255, 94, 91, 0.14);
+      --blue: #3b82f6;
+      --secondary: #2f3642;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 32px));
+      margin: auto;
+    }
+
+    .top {
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(16,17,20,0.9);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .top-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+    }
+
+    .brand {
+      font-weight: 850;
+      font-size: 19px;
+      color: white;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand span {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--lime);
+      color: #171912;
+      font-weight: 900;
+      font-size: 16px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      background: var(--lime);
+      color: #171912;
+      font-weight: 800;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.secondary {
+      background: #2d3748;
+      color: white;
+    }
+
+    .btn.danger {
+      background: var(--danger-soft);
+      color: #ffb2af;
+      border: 1px solid rgba(255, 94, 91, 0.25);
+    }
+
+    main.wrap {
+      padding: 34px 0 56px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 8px 0 0;
+      font-size: clamp(32px, 5vw, 48px);
+      letter-spacing: -0.06em;
+      line-height: 1;
+    }
+
+    .warning {
+      margin-top: 18px;
+      border: 1px solid #e8ad4c55;
+      background: #e8ad4c12;
+      padding: 13px 15px;
+      border-radius: 12px;
+      color: #f0d7a0;
+      font-size: 13px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .stat, .box {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 17px;
+    }
+
+    .stat small {
+      display: block;
+      color: var(--muted);
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 27px;
+    }
+
+    .box {
+      margin-top: 20px;
+    }
+
+    .box h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-top: 16px;
+      max-width: 500px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #383941;
+      border-radius: 10px;
+      background: #111216;
+      color: white;
+      font: inherit;
+    }
+
+    .remaining {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--lime);
+      font-weight: 700;
+    }
+
+    .tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 1.5fr 0.8fr auto;
+      gap: 16px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 15px;
+    }
+
+    .item h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .item p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .slug {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--lime);
+      background: rgba(200, 250, 101, 0.08);
+      border: 1px solid rgba(200, 250, 101, 0.25);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .meta {
+      display: grid;
+      gap: 6px;
+      justify-items: end;
+      text-align: right;
+    }
+
+    .meta strong {
+      font-size: 18px;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .empty {
+      padding: 30px 20px;
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 16px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.01);
+    }
+
+    .footer {
+      width: min(1120px, calc(100% - 32px));
+      margin: 20px auto 0;
+      padding: 18px 0 30px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 720px) {
+      .stats { grid-template-columns: 1fr; }
+      .item {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+      .meta {
+        justify-items: start;
+        text-align: left;
+      }
+      .item-actions {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="brand" href="./"><span>W</span>Webová liga · Admin</a>
+      <a class="btn secondary" id="home" href="./">Späť na súťaž</a>
+    </div>
+  </header>
+
+  <main class="wrap" id="panel">
+    <div class="muted">ADMINISTRAČNÝ PANEL</div>
+    <h1>Správa súťaže</h1>
+    <p class="muted">Časovač sa automaticky spustí na 7 dní pri pridaní prvého webu do kola.</p>
+
+    <div class="warning">
+      Demo: URL <strong>/admin.4321</strong> nie je bezpečné prihlasovanie. Odstráň a nahradíš vlastným admin prístupom.
+    </div>
+
+    <section class="stats">
+      <div class="stat">
+        <small>Weby v súťaži</small>
+        <strong id="total">0</strong>
+      </div>
+      <div class="stat">
+        <small>Hlasy spolu</small>
+        <strong id="votes">0</strong>
+      </div>
+      <div class="stat">
+        <small>Weby v tomto kole</small>
+        <strong id="active">0</strong>
+      </div>
+    </section>
+
+    <section class="box">
+      <h2>Čas do vyhlásenia víťaza</h2>
+      <p class="muted">Môžeš nastaviť vlastný termín, alebo nechať časovač spustiť až po prvom prihlásenom webe.</p>
+
+      <div class="field">
+        <label for="endAt">Koniec kola</label>
+        <input id="endAt" type="datetime-local" />
+        <div class="remaining" id="remaining"></div>
+      </div>
+
+      <div class="tools">
+        <button class="btn" id="save-time">Uložiť termín</button>
+        <button class="btn secondary" id="auto">Spustiť automaticky po prvom webe</button>
+        <button class="btn secondary" id="new-round">Nové kolo</button>
+      </div>
+    </section>
+
+    <section class="box" style="margin-top:20px;">
+      <h2>Záloha a správa</h2>
+      <div class="tools">
+        <button class="btn" id="export">Stiahnuť zálohu JSON</button>
+        <label class="btn secondary" for="import">Obnoviť zálohu</label>
+        <input id="import" type="file" accept="application/json,.json" hidden />
+        <button class="btn danger" id="clear-votes">Vymazať hlasy</button>
+        <button class="btn danger" id="clear-all">Vymazať všetky weby</button>
+      </div>
+    </section>
+
+    <section style="margin-top:22px;">
+      <h2>Prihlásené weby</h2>
+      <div class="list" id="list"></div>
+    </section>
+  </main>
+
+  <footer class="footer">Lokalne demo admin.</footer>
+
+  <script>
+    (() => {
+      const DATA = 'webova-liga-html-v2';
+      const SET = 'webova-liga-settings-v1';
+      const EXPECT = '/admin.4321';
+
+      const forwarded = new URLSearchParams(location.search).get('route');
+      if (forwarded) history.replaceState({}, '', forwarded);
+
+      const path = decodeURIComponent(location.pathname).replace(/\/+$/, '');
+      if (!path.endsWith(EXPECT)) {
+        document.getElementById('panel').innerHTML = '<h1>Stránka nebola nájdená</h1>';
+        return;
+      }
+
+      function esc(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function read() {
+        try {
+          const raw = JSON.parse(localStorage.getItem(DATA) || 'null');
+          if (!raw || typeof raw !== 'object') return { entries: [], votes: {} };
+          return {
+            entries: Array.isArray(raw.entries) ? raw.entries : [],
+            votes: raw.votes && typeof raw.votes === 'object' ? raw.votes : {}
+          };
+        } catch {
+          return { entries: [], votes: {} };
+        }
+      }
+
+      function write(data) {
+        try {
+          localStorage.setItem(DATA, JSON.stringify(data));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function settings() {
+        try {
+          return JSON.parse(localStorage.getItem(SET) || '{}');
+        } catch {
+          return {};
+        }
+      }
+
+      function putSettings(value) {
+        try {
+          localStorage.setItem(SET, JSON.stringify(value));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function roundKey() {
+        const s = settings();
+        if (s.roundKey) return s.roundKey;
+
+        const m = new Date();
+        m.setHours(0, 0, 0, 0);
+        m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+
+        return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(m.getDate()).padStart(2, '0')}`;
+      }
+
+      function deadline() {
+        const t = Number(settings().endAt);
+        return Number.isFinite(t) && t > 0 ? t : null;
+      }
+
+      function asLocal(timestamp) {
+        const d = new Date(timestamp);
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+
+      function render() {
+        const data = read();
+        const entries = Array.isArray(data.entries) ? data.entries : [];
+        const round = roundKey();
+        const end = deadline();
+
+        const total = entries.length;
+        const votes = entries.reduce((sum, entry) => sum + (Number(entry.votes) || 0), 0);
+        const active = entries.filter((entry) => String(entry.week || round) === String(round)).length;
+
+        document.getElementById('total').textContent = total;
+        document.getElementById('votes').textContent = votes;
+        document.getElementById('active').textContent = active;
+        document.getElementById('endAt').value = end ? asLocal(end) : '';
+
+        const list = document.getElementById('list');
+        if (!entries.length) {
+          list.innerHTML = '<div class="empty">Žiadne weby v tomto kole ešte nie sú prihlásené.</div>';
+          return;
+        }
+
+        list.innerHTML = entries.map((entry, index) => {
+          const id = String(entry.slug || entry.url || entry.title || index);
+          const title = esc(entry.title || 'Bez názvu');
+          const creator = esc(entry.creator || 'Neznámy autor');
+          const slug = esc(entry.slug || 'bez-slug');
+          const week = esc(entry.week || round);
+          const voteCount = Number(entry.votes) || 0;
+          const url = esc(entry.url || '#');
+
+          return `
+            <article class="item">
+              <div>
+                <h3>${title}</h3>
+                <p>${creator}</p>
+                <span class="slug">${slug}</span>
+              </div>
+
+              <div class="meta">
+                <span class="muted">Hlasy</span>
+                <strong>${voteCount}</strong>
+                <span class="muted">${week}</span>
+              </div>
+
+              <div class="item-actions">
+                <a class="btn secondary" href="${url}" target="_blank" rel="noopener">Otvoriť</a>
+                <button class="btn danger delete-entry" data-index="${index}" data-id="${esc(id)}">Vymazať</button>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      function update() {
+        const end = deadline();
+        const el = document.getElementById('remaining');
+
+        if (!end) {
+          el.textContent = 'Čaká na prvý prihlásený web.';
+          return;
+        }
+
+        const ms = end - Date.now();
+        if (ms <= 0) {
+          el.textContent = 'Čas vypršal';
+          return;
+        }
+
+        const days = Math.floor(ms / 86400000);
+        const hours = Math.floor((ms % 86400000) / 3600000);
+        const minutes = Math.floor((ms % 3600000) / 60000);
+        el.textContent = `${days}d ${hours}h ${minutes}m zostáva`;
+      }
+
+      document.getElementById('save-time').addEventListener('click', () => {
+        const v = document.getElementById('endAt').value;
+        const t = new Date(v).getTime();
+
+        if (!v || !Number.isFinite(t) || t <= Date.now()) {
+          alert('Vyber čas v budúcnosti.');
+          return;
+        }
+
+        const s = settings();
+        s.endAt = String(t);
+        putSettings(s);
+        render();
+        update();
+        alert('Termín bol uložený.');
+      });
+
+      document.getElementById('auto').addEventListener('click', () => {
+        const s = settings();
+        delete s.endAt;
+        delete s.winnerRoundKey;
+        delete s.winnerId;
+        putSettings(s);
+        render();
+        update();
+        alert('Časovač sa spustí po prvom prihlásenom webe.');
+      });
+
+      document.getElementById('new-round').addEventListener('click', () => {
+        if (!confirm('Vymazať aktuálne kolo? Stlačením potvrdíš nový začiatok súťaže.')) return;
+
+        const s = settings();
+        s.roundKey = `round-${Date.now()}`;
+        delete s.endAt;
+        delete s.winnerRoundKey;
+        delete s.winnerId;
+        putSettings(s);
+        render();
+        update();
+        alert('Nové kolo je pripravené.');
+      });
+
+      document.getElementById('export').addEventListener('click', () => {
+        const payload = { data: read(), settings: settings() };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'webova-liga-zaloha.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      document.getElementById('import').addEventListener('change', async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const data = parsed && parsed.data ? parsed.data : parsed;
+
+          if (!data || !Array.isArray(data.entries)) throw new Error('Neplatný formát zálohy.');
+
+          if (confirm('Obnoviť zálohu?')) {
+            write({ entries: data.entries, votes: data.votes || {} });
+            if (parsed.settings) putSettings(parsed.settings);
+            render();
+            update();
+            alert('Záloha bola obnovená.');
+          }
+        } catch (error) {
+          alert('Nepodarilo sa načítať zálohu.');
+        } finally {
+          event.target.value = '';
+        }
+      });
+
+      document.getElementById('clear-votes').addEventListener('click', () => {
+        if (!confirm('Vymazať všetky hlasy?')) return;
+
+        const d = read();
+        d.entries = d.entries.map((entry) => ({ ...entry, votes: 0 }));
+        d.votes = {};
+        write(d);
+        render();
+        update();
+      });
+
+      document.getElementById('clear-all').addEventListener('click', () => {
+        if (!confirm('Vymazať všetky weby z tejto súťaže?')) return;
+
+        write({ entries: [], votes: {} });
+        render();
+        update();
+      });
+
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('.delete-entry');
+        if (!button) return;
+
+        const index = Number(button.dataset.index);
+        const data = read();
+        const entries = Array.isArray(data.entries) ? data.entries : [];
+        const item = entries[index];
+
+        if (!item) return;
+
+        const id = String(item.slug || item.url || item.title || index);
+        const confirmText = `Vymazať web "${item.title || 'Bez názvu'}"?`;
+
+        if (!confirm(confirmText)) return;
+
+        const next = entries.filter((_, i) => i !== index);
+        data.entries = next;
+
+        if (data.votes && typeof data.votes === 'object') {
+          delete data.votes[id];
+          delete data.votes[String(item.url || '')];
+        }
+
+        write(data);
+        render();
+        update();
+      });
+
+      render();
+      update();
+      setInterval(update, 1000 * 60);
+    })();
+  </script>
+</body>
+</html>
