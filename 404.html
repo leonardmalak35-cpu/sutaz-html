@@ -1,0 +1,5 @@
+<!doctype html><html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Načítavam náhľad…</title></head><body><script>
+// GitHub Pages serves this file for unknown paths. Send the original route back to the SPA.
+const p=location.pathname,base=p==='/sutaz-html'||p.startsWith('/sutaz-html/')?'/sutaz-html/':'/';
+location.replace(base+'?route='+encodeURIComponent(p+location.search+location.hash));
+</script></body></html>
